@@ -8,10 +8,34 @@ use sysfs_gpio::{Direction, Pin};
 const DAT: u64 = 15;
 const CLK: u64 = 14;
 
-struct Pixel {
+struct HSL {
+	hue: u32,
+	saturation: f32,
+	lightness: f32,
+}
+
+#[derive(Debug)]
+struct RGB {
 	red: u8,
 	green: u8,
 	blue: u8,
+}
+
+fn hsl_to_rgb(hsl: HSL) -> RGB {
+	let a = hsl.saturation * hsl.lightness.min(1.0 - hsl.lightness);
+	let f = |n: f32| {
+		let k = (n + (hsl.hue as f32) / 30.0) % 12.0;
+		(hsl.lightness - a * (k - 3.0).min(9.0 - k).min(1.0).max(-1.0))
+	};
+	RGB {
+		red: (f(0.0) * 255.0) as u8,
+		green: (f(8.0) * 255.0) as u8,
+		blue: (f(4.0) * 255.0) as u8,
+	}
+}
+
+struct Pixel {
+	rgb: RGB,
 	brightness: f32,
 }
 
@@ -63,9 +87,9 @@ fn show_pixel(dat: &Pin, clk: &Pin, pixel: &Pixel) -> Result<(), Box<dyn Error>>
 		clk,
 		0b1110_0000 | (((31.0 * pixel.brightness) as u8) & 0b1_1111),
 	)?;
-	write_byte(dat, clk, pixel.blue)?;
-	write_byte(dat, clk, pixel.green)?;
-	write_byte(dat, clk, pixel.red)?;
+	write_byte(dat, clk, pixel.rgb.blue)?;
+	write_byte(dat, clk, pixel.rgb.green)?;
+	write_byte(dat, clk, pixel.rgb.red)?;
 	eof(dat, clk)?;
 	Ok(())
 }
@@ -78,15 +102,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 	clk.set_direction(Direction::Low)?;
 	clk.export()?;
 
-	for i in 0i32..100 {
+	for i in 0u32..360 * 5 {
+		let hsl = HSL {
+			hue: i % 360,
+			saturation: 1.0,
+			lightness: 0.5,
+		};
+		let rgb = hsl_to_rgb(hsl);
+		// println!("{:?}", rgb);
 		let pixel = Pixel {
-			red: 255,
-			green: 0,
-			blue: 0,
-			brightness: 0.1 * (10 - ((i % 20) - 10).abs()) as f32,
+			rgb,
+			brightness: 0.5,
+			// brightness: 0.1 * (10 - ((i % 20) - 10).abs()) as f32,
 		};
 		show_pixel(&dat, &clk, &pixel)?;
-		sleep(Duration::from_millis(5));
+		sleep(Duration::from_millis(1));
 	}
 
 	Ok(())
