@@ -71,13 +71,13 @@ mod tests {
 	fn test_set_led() -> Result<(), Box<dyn Error>> {
 		let pi = RPi::new()?;
 		pi.set_led(255, 0, 0, 1.0)?;
-		sleep(Duration::from_millis(500));
+		sleep(Duration::from_millis(250));
 		pi.set_led(0, 255, 0, 1.0)?;
-		sleep(Duration::from_millis(500));
+		sleep(Duration::from_millis(250));
 		pi.set_led(0, 0, 255, 1.0)?;
-		sleep(Duration::from_millis(500));
+		sleep(Duration::from_millis(250));
 		pi.set_led(255, 255, 255, 1.0)?;
-		sleep(Duration::from_millis(500));
+		sleep(Duration::from_millis(250));
 		pi.set_led(0, 0, 0, 1.0)?;
 		Ok(())
 	}
