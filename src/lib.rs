@@ -4,20 +4,20 @@ use std::thread::sleep;
 use std::time::Duration;
 use sysfs_gpio::{Direction, Pin};
 
-pub struct RPi {
+pub struct FanSHIM {
 	dat: Pin,
 	clk: Pin,
 }
 
-impl RPi {
-	pub fn new() -> Result<RPi, Box<dyn Error>> {
+impl FanSHIM {
+	pub fn new() -> Result<FanSHIM, Box<dyn Error>> {
 		let dat = Pin::new(15);
 		dat.set_direction(Direction::Low)?;
 		dat.export()?;
 		let clk = Pin::new(14);
 		clk.set_direction(Direction::Low)?;
 		clk.export()?;
-		Ok(RPi { dat, clk })
+		Ok(FanSHIM { dat, clk })
 	}
 	// https://cdn-shop.adafruit.com/datasheets/APA102.pdf
 	pub fn set_led(
@@ -69,16 +69,24 @@ mod tests {
 	use super::*;
 	#[test]
 	fn test_set_led() -> Result<(), Box<dyn Error>> {
-		let pi = RPi::new()?;
-		pi.set_led(255, 0, 0, 1.0)?;
+		let fanshim = FanSHIM::new()?;
+		fanshim.set_led(255, 0, 0, 1.0)?;
 		sleep(Duration::from_millis(250));
-		pi.set_led(0, 255, 0, 1.0)?;
+		fanshim.set_led(0, 255, 0, 1.0)?;
 		sleep(Duration::from_millis(250));
-		pi.set_led(0, 0, 255, 1.0)?;
+		fanshim.set_led(0, 0, 255, 1.0)?;
 		sleep(Duration::from_millis(250));
-		pi.set_led(255, 255, 255, 1.0)?;
+		fanshim.set_led(255, 255, 255, 1.0)?;
 		sleep(Duration::from_millis(250));
-		pi.set_led(0, 0, 0, 1.0)?;
+		fanshim.set_led(255, 0, 0, 1.0)?;
+		sleep(Duration::from_millis(250));
+		fanshim.set_led(255, 0, 0, 0.75)?;
+		sleep(Duration::from_millis(250));
+		fanshim.set_led(255, 0, 0, 0.5)?;
+		sleep(Duration::from_millis(250));
+		fanshim.set_led(255, 0, 0, 0.25)?;
+		sleep(Duration::from_millis(250));
+		fanshim.set_led(0, 0, 0, 1.0)?;
 		Ok(())
 	}
 }
