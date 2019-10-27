@@ -6,6 +6,7 @@ This is the Rust library for Pimoroni's Raspberry Pi Fan SHIM module. Alternativ
 
 - [x] Set LED
 - [x] Toggle fan
+  - [ ] [Variable speed](https://github.com/pimoroni/fanshim-python/issues/22)
 - [ ] Read button
 
 ## Reference
