@@ -15,14 +15,18 @@ impl FanSHIM {
 		let fan = Pin::new(18);
 		fan.set_direction(Direction::Out)?;
 		fan.export()?;
+
 		let dat = Pin::new(15);
 		dat.set_direction(Direction::Low)?;
 		dat.export()?;
+
 		let clk = Pin::new(14);
 		clk.set_direction(Direction::Low)?;
 		clk.export()?;
+
 		Ok(FanSHIM { fan, dat, clk })
 	}
+
 	// https://cdn-shop.adafruit.com/datasheets/APA102.pdf
 	pub fn set_led(
 		&self,
