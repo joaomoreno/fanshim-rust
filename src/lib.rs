@@ -6,8 +6,8 @@ use sysfs_gpio::{Direction, Pin};
 
 pub struct FanSHIM {
 	fan: Pin,
-	dat: Pin,
-	clk: Pin,
+	data: Pin,
+	clock: Pin,
 }
 
 impl FanSHIM {
@@ -16,15 +16,15 @@ impl FanSHIM {
 		fan.set_direction(Direction::Out)?;
 		fan.export()?;
 
-		let dat = Pin::new(15);
-		dat.set_direction(Direction::Low)?;
-		dat.export()?;
+		let data = Pin::new(15);
+		data.set_direction(Direction::Low)?;
+		data.export()?;
 
-		let clk = Pin::new(14);
-		clk.set_direction(Direction::Low)?;
-		clk.export()?;
+		let clock = Pin::new(14);
+		clock.set_direction(Direction::Low)?;
+		clock.export()?;
 
-		Ok(FanSHIM { fan, dat, clk })
+		Ok(FanSHIM { fan, data, clock })
 	}
 
 	// https://cdn-shop.adafruit.com/datasheets/APA102.pdf
@@ -36,11 +36,11 @@ impl FanSHIM {
 		brightness: f32,
 	) -> Result<(), Box<dyn Error>> {
 		// start frame
-		self.dat.set_value(0)?;
+		self.data.set_value(0)?;
 		for _ in 0..32 {
-			self.clk.set_value(1)?;
+			self.clock.set_value(1)?;
 			sleep(Duration::from_nanos(250));
-			self.clk.set_value(0)?;
+			self.clock.set_value(0)?;
 			sleep(Duration::from_nanos(250));
 		}
 		// LED frame
@@ -49,11 +49,11 @@ impl FanSHIM {
 		self.write_byte(green)?;
 		self.write_byte(red)?;
 		// end frame
-		self.dat.set_value(1)?;
+		self.data.set_value(1)?;
 		for _ in 0..32 {
-			self.clk.set_value(1)?;
+			self.clock.set_value(1)?;
 			sleep(Duration::from_nanos(250));
-			self.clk.set_value(0)?;
+			self.clock.set_value(0)?;
 			sleep(Duration::from_nanos(250));
 		}
 		Ok(())
@@ -66,11 +66,11 @@ impl FanSHIM {
 
 	fn write_byte(&self, mut byte: u8) -> Result<(), Box<dyn Error>> {
 		for _ in 0..8 {
-			self.dat.set_value(byte & 0b10000000)?;
-			self.clk.set_value(1)?;
+			self.data.set_value(byte & 0b10000000)?;
+			self.clock.set_value(1)?;
 			sleep(Duration::from_nanos(250));
 			byte <<= 1;
-			self.clk.set_value(0)?;
+			self.clock.set_value(0)?;
 			sleep(Duration::from_nanos(250));
 		}
 		Ok(())
