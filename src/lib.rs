@@ -1,6 +1,9 @@
+extern crate futures;
 extern crate sysfs_gpio;
 
+use futures::prelude::*;
 use std::error::Error;
+use std::fmt;
 use std::thread::sleep;
 use std::time::Duration;
 use sysfs_gpio::{Direction, Edge, Pin, PinValueStream};
@@ -10,7 +13,42 @@ pub struct FanSHIM {
 	data: Pin,
 	clock: Pin,
 	button: Pin,
-	// hold_time: f32,
+	hold_time: f32,
+}
+
+#[derive(Debug)]
+pub enum ButtonEvent {
+	Press,
+	Release,
+	Hold,
+}
+
+impl fmt::Display for ButtonEvent {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ButtonEvent::Press => write!(f, "press"),
+			ButtonEvent::Release => write!(f, "release"),
+			ButtonEvent::Hold => write!(f, "hold"),
+		}
+	}
+}
+
+pub struct ButtonStream {
+	stream: PinValueStream,
+}
+
+impl Stream for ButtonStream {
+	type Item = ButtonEvent;
+	type Error = sysfs_gpio::Error;
+
+	fn poll(&mut self) -> Poll<Option<ButtonEvent>, sysfs_gpio::Error> {
+		match self.stream.poll()? {
+			Async::Ready(Some(0)) => Ok(Some(ButtonEvent::Press).into()),
+			Async::Ready(Some(_)) => Ok(Some(ButtonEvent::Release).into()),
+			Async::Ready(None) => Ok(None.into()),
+			Async::NotReady => Ok(Async::NotReady),
+		}
+	}
 }
 
 impl FanSHIM {
@@ -37,7 +75,7 @@ impl FanSHIM {
 			data,
 			clock,
 			button,
-			// hold_time: 2.0,
+			hold_time: 2.0,
 		})
 	}
 
@@ -78,8 +116,9 @@ impl FanSHIM {
 		Ok(())
 	}
 
-	pub fn get_button_stream(&self) -> Result<PinValueStream, Box<dyn Error>> {
-		Ok(self.button.get_value_stream()?)
+	pub fn get_button_stream(&self) -> Result<ButtonStream, Box<dyn Error>> {
+		let stream = self.button.get_value_stream()?;
+		Ok(ButtonStream { stream })
 	}
 
 	fn write_byte(&self, mut byte: u8) -> Result<(), Box<dyn Error>> {
