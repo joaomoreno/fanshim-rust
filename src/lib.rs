@@ -5,15 +5,16 @@ use futures::prelude::*;
 use std::error::Error;
 use std::fmt;
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use sysfs_gpio::{Direction, Edge, Pin, PinValueStream};
+use tokio::timer::Delay;
 
 pub struct FanSHIM {
 	fan: Pin,
 	data: Pin,
 	clock: Pin,
 	button: Pin,
-	hold_time: f32,
+	// hold_time: f32,
 }
 
 #[derive(Debug)]
@@ -35,18 +36,59 @@ impl fmt::Display for ButtonEvent {
 
 pub struct ButtonStream {
 	stream: PinValueStream,
+	delay: Option<Delay>,
+}
+
+impl ButtonStream {
+	fn new(stream: PinValueStream) -> ButtonStream {
+		ButtonStream {
+			stream,
+			delay: None,
+		}
+	}
 }
 
 impl Stream for ButtonStream {
 	type Item = ButtonEvent;
 	type Error = sysfs_gpio::Error;
 
-	fn poll(&mut self) -> Poll<Option<ButtonEvent>, sysfs_gpio::Error> {
-		match self.stream.poll()? {
-			Async::Ready(Some(0)) => Ok(Some(ButtonEvent::Press).into()),
-			Async::Ready(Some(_)) => Ok(Some(ButtonEvent::Release).into()),
-			Async::Ready(None) => Ok(None.into()),
-			Async::NotReady => Ok(Async::NotReady),
+	fn poll(&mut self) -> Poll<Option<ButtonEvent>, Self::Error> {
+		match self.delay.take() {
+			Some(mut d) => match d
+				.poll()
+				.map_err(|_| sysfs_gpio::Error::Unexpected(String::from("timer error")))?
+			{
+				Async::Ready(_) => Ok(Some(ButtonEvent::Hold).into()),
+				Async::NotReady => match self.stream.poll()? {
+					Async::Ready(Some(0)) => {
+						let later = Instant::now() + Duration::from_secs(2);
+						self.delay = Some(Delay::new(later));
+						Ok(Some(ButtonEvent::Press).into())
+					}
+					Async::Ready(Some(_)) => {
+						self.delay = None;
+						Ok(Some(ButtonEvent::Release).into())
+					}
+					Async::Ready(None) => Ok(Async::Ready(None)),
+					Async::NotReady => {
+						self.delay = Some(d);
+						Ok(Async::NotReady)
+					}
+				},
+			},
+			None => match self.stream.poll()? {
+				Async::Ready(Some(0)) => {
+					let later = Instant::now() + Duration::from_secs(2);
+					self.delay = Some(Delay::new(later));
+					Ok(Some(ButtonEvent::Press).into())
+				}
+				Async::Ready(Some(_)) => {
+					self.delay = None;
+					Ok(Some(ButtonEvent::Release).into())
+				}
+				Async::Ready(None) => Ok(Async::Ready(None)),
+				Async::NotReady => Ok(Async::NotReady),
+			},
 		}
 	}
 }
@@ -75,7 +117,7 @@ impl FanSHIM {
 			data,
 			clock,
 			button,
-			hold_time: 2.0,
+			// hold_time: 2.0,
 		})
 	}
 
@@ -118,7 +160,7 @@ impl FanSHIM {
 
 	pub fn get_button_stream(&self) -> Result<ButtonStream, Box<dyn Error>> {
 		let stream = self.button.get_value_stream()?;
-		Ok(ButtonStream { stream })
+		Ok(ButtonStream::new(stream))
 	}
 
 	fn write_byte(&self, mut byte: u8) -> Result<(), Box<dyn Error>> {
