@@ -27,9 +27,9 @@ pub enum ButtonEvent {
 impl fmt::Display for ButtonEvent {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ButtonEvent::Press => write!(f, "press"),
-			ButtonEvent::Release => write!(f, "release"),
-			ButtonEvent::Hold => write!(f, "hold"),
+			ButtonEvent::Press => write!(f, "Press"),
+			ButtonEvent::Release => write!(f, "Release"),
+			ButtonEvent::Hold => write!(f, "Hold"),
 		}
 	}
 }
