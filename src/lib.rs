@@ -14,6 +14,7 @@ pub struct FanSHIM {
 	data: Pin,
 	clock: Pin,
 	button: Pin,
+	// TODO use Duration
 	// hold_time: f32,
 }
 
@@ -56,7 +57,7 @@ impl Stream for ButtonStream {
 		match self.delay.take() {
 			Some(mut d) => match d
 				.poll()
-				.map_err(|_| sysfs_gpio::Error::Unexpected(String::from("timer error")))?
+				.map_err(|_| sysfs_gpio::Error::Unexpected(String::from("timer error")))? // TODO: custom errors
 			{
 				Async::Ready(_) => Ok(Some(ButtonEvent::Hold).into()),
 				Async::NotReady => match self.stream.poll()? {
