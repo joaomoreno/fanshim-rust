@@ -14,8 +14,7 @@ pub struct FanSHIM {
 	data: Pin,
 	clock: Pin,
 	button: Pin,
-	// TODO use Duration
-	// hold_time: f32,
+	pub hold_time: Duration,
 }
 
 #[derive(Debug)]
@@ -38,13 +37,15 @@ impl fmt::Display for ButtonEvent {
 pub struct ButtonStream {
 	stream: PinValueStream,
 	delay: Option<Delay>,
+	hold_time: Duration,
 }
 
 impl ButtonStream {
-	fn new(stream: PinValueStream) -> ButtonStream {
+	fn new(stream: PinValueStream, hold_time: Duration) -> ButtonStream {
 		ButtonStream {
 			stream,
 			delay: None,
+			hold_time
 		}
 	}
 }
@@ -62,7 +63,7 @@ impl Stream for ButtonStream {
 				Async::Ready(_) => Ok(Some(ButtonEvent::Hold).into()),
 				Async::NotReady => match self.stream.poll()? {
 					Async::Ready(Some(0)) => {
-						let later = Instant::now() + Duration::from_secs(2);
+						let later = Instant::now() + self.hold_time;
 						self.delay = Some(Delay::new(later));
 						Ok(Some(ButtonEvent::Press).into())
 					}
@@ -79,7 +80,7 @@ impl Stream for ButtonStream {
 			},
 			None => match self.stream.poll()? {
 				Async::Ready(Some(0)) => {
-					let later = Instant::now() + Duration::from_secs(2);
+					let later = Instant::now() + self.hold_time;
 					self.delay = Some(Delay::new(later));
 					Ok(Some(ButtonEvent::Press).into())
 				}
@@ -118,7 +119,7 @@ impl FanSHIM {
 			data,
 			clock,
 			button,
-			// hold_time: 2.0,
+			hold_time: Duration::from_secs(2),
 		})
 	}
 
@@ -161,7 +162,7 @@ impl FanSHIM {
 
 	pub fn get_button_stream(&self) -> Result<ButtonStream, Box<dyn Error>> {
 		let stream = self.button.get_value_stream()?;
-		Ok(ButtonStream::new(stream))
+		Ok(ButtonStream::new(stream, self.hold_time))
 	}
 
 	fn write_byte(&self, mut byte: u8) -> Result<(), Box<dyn Error>> {
