@@ -20,7 +20,7 @@ pub struct FanSHIM {
 #[derive(Debug)]
 pub enum ButtonEvent {
 	Press,
-	Release,
+	Release(bool),
 	Hold,
 }
 
@@ -28,7 +28,7 @@ impl fmt::Display for ButtonEvent {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ButtonEvent::Press => write!(f, "Press"),
-			ButtonEvent::Release => write!(f, "Release"),
+			ButtonEvent::Release(was_held) => write!(f, "Release (was held: {})", was_held),
 			ButtonEvent::Hold => write!(f, "Hold"),
 		}
 	}
@@ -37,6 +37,7 @@ impl fmt::Display for ButtonEvent {
 pub struct ButtonStream {
 	stream: PinValueStream,
 	delay: Option<Delay>,
+	did_press: bool,
 	hold_time: Duration,
 }
 
@@ -45,7 +46,8 @@ impl ButtonStream {
 		ButtonStream {
 			stream,
 			delay: None,
-			hold_time
+			did_press: true,
+			hold_time,
 		}
 	}
 }
@@ -65,11 +67,12 @@ impl Stream for ButtonStream {
 					Async::Ready(Some(0)) => {
 						let later = Instant::now() + self.hold_time;
 						self.delay = Some(Delay::new(later));
+						self.did_press = true;
 						Ok(Some(ButtonEvent::Press).into())
 					}
 					Async::Ready(Some(_)) => {
 						self.delay = None;
-						Ok(Some(ButtonEvent::Release).into())
+						Ok(Some(ButtonEvent::Release(false)).into())
 					}
 					Async::Ready(None) => Ok(Async::Ready(None)),
 					Async::NotReady => {
@@ -82,11 +85,12 @@ impl Stream for ButtonStream {
 				Async::Ready(Some(0)) => {
 					let later = Instant::now() + self.hold_time;
 					self.delay = Some(Delay::new(later));
+					self.did_press = true;
 					Ok(Some(ButtonEvent::Press).into())
 				}
 				Async::Ready(Some(_)) => {
 					self.delay = None;
-					Ok(Some(ButtonEvent::Release).into())
+					Ok(Some(ButtonEvent::Release(self.did_press)).into())
 				}
 				Async::Ready(None) => Ok(Async::Ready(None)),
 				Async::NotReady => Ok(Async::NotReady),
